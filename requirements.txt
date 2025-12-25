@@ -20,7 +20,8 @@ pytz
 dnspython==2.6.1
 speedtest-cli
 shortzy
-fuzzywuzzy
+fuzzywuzzy[speedup]
+python-Levenshtein==0.12.2
 python-Levenshtein
 gunicorn
 werkzeug==2.0.2
@@ -37,4 +38,5 @@ jinja2
 apscheduler
 pyromod
 colorama
+
 
