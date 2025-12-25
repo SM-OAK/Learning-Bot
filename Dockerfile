@@ -1,30 +1,16 @@
 FROM python:3.12-slim
 
-# Set working directory
-WORKDIR /app
-
-# 1. Install system dependencies required for your specific requirements
+# Install the "Build Essentials" that most bot scripts need
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gcc \
+    g++ \
     python3-dev \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip
-
-# 3. Copy requirements first (Best practice for faster builds)
+WORKDIR /app
 COPY requirements.txt .
-
-# 4. Install requirements
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 5. Copy the rest of the code
+RUN pip install --no-cache-dir -U pip && pip install --no-cache-dir -r requirements.txt
 COPY . .
-
-# Koyeb uses 8080 by default for web services
-EXPOSE 8080
-
-CMD ["python", "
-bot.py"]
+CMD ["python", "bot.py"]
