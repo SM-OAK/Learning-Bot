@@ -6,38 +6,18 @@ from info import *
 
 @Client.on_message(filters.command('ban') & filters.user(ADMINS))
 async def ban_a_user(bot, message):
-    # https://t.me/JISSHU_BOTS
     if len(message.command) == 1:
-        return await message.reply('Give me a user id / username')
-    r = message.text.split(None)
-    if len(r) > 2:
-        reason = message.text.split(None, 2)[2]
-        chat = message.text.split(None, 2)[1]
-    else:
-        chat = message.command[1]
-        reason = "No reason Provided"
-    try:
-        chat = int(chat)
-    except:
-        pass
-    try:
-        k = await bot.get_users(chat)
-    except PeerIdInvalid:
-        return await message.reply("This is an invalid user, make sure I have met him before.")
-    except IndexError:
-        return await message.reply("This might be a channel, make sure its a user.")
-    except Exception as e:
-        return await message.reply(f'Error - {e}')
-    else:
-        jar = await db.get_ban_status(k.id)
-        if jar['is_banned']:
-            return await message.reply(f"{k.mention} is already banned\nReason: {jar['ban_reason']}")
-        await db.ban_user(k.id, reason)
-        temp.BANNED_USERS.append(k.id)
-        await message.reply(f"Successfully banned {k.mention}")
-
-
+        return await message.reply('**Usage: /ban 12345678 Reason**')
     
+    user_id = message.command[1]
+    reason = " ".join(message.command[2:]) if len(message.command) > 2 else "No Reason Provided"
+    
+    try:
+        await db.ban_user(int(user_id), reason)
+        await message.reply(f'**Successfully Banned User: `{user_id}`**')
+    except Exception as e:
+        await message.reply(f'**Error:** `{e}`')
+   
 @Client.on_message(filters.command('unban') & filters.user(ADMINS))
 async def unban_a_user(bot, message):
     if len(message.command) == 1:
