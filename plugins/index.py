@@ -122,7 +122,8 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
                 if not media:
                     unsupported += 1
                     continue
-                elif media.mime_type not in ['video/mp4', 'video/x-matroska']:
+                # FIXED: Expanded MIME types to include common video formats and octet-stream
+                elif media.mime_type not in ['video/mp4', 'video/x-matroska', 'video/webm', 'application/octet-stream', 'video/quicktime']:
                     unsupported += 1
                     continue
                 media.caption = message.caption
@@ -140,3 +141,4 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
         else:
             time_taken = get_readable_time(time.time()-start_time)
             await msg.edit(f'Succesfully saved <code>{total_files}</code> to Database!\nCompleted in {time_taken}\n\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>\nUnsupported Media: <code>{unsupported}</code>\nErrors Occurred: <code>{errors}</code>')
+
