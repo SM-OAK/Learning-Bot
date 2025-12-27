@@ -9,6 +9,11 @@ import re
 @Client.on_message(filters.private & filters.command("set_ads") & filters.user(ADMINS))
 async def set_ads(client, message):
     try:
+        # FIXED: Added safety check to prevent crash if command is empty
+        if len(message.command) < 2:
+            await message.reply_text(f"Usage: /set_ads {{ads name}}#{{time}}#{{photo URL}} <a href=https://t.me/Jisshu_developer/9>Explain</a>")
+            return
+
         command_args = message.text.split(maxsplit=1)[1]
         if '#' not in command_args or len(command_args.split('#')) < 3:
             await message.reply_text(f"Usage: /set_ads {{ads name}}#{{time}}#{{photo URL}} <a href=https://t.me/Jisshu_developer/9>Explain</a>")
@@ -30,14 +35,12 @@ async def set_ads(client, message):
         impression_count = None
 
         if duration_or_impression[0] == 'd':
-           
             duration = duration_or_impression[1:]
             if not duration.isdigit():
                 await message.reply_text(f"Duration must be a number.")
                 return
             expiry_date = datetime.now() + timedelta(days=int(duration))
         elif duration_or_impression[0] == 'i':
-           
             impression = duration_or_impression[1:]
             if not impression.isdigit():
                 await message.reply_text(f"Impression count must be a number.")
@@ -55,7 +58,6 @@ async def set_ads(client, message):
             await message.reply_text(f"Only text messages are supported.")
             return
 
-       
         await mdb.update_advirtisment(reply.text, f"{ads_name}", expiry_date, impression_count)
         await db.jisshu_set_ads_link(url)
 
@@ -103,3 +105,4 @@ async def del_ads(client, message):
             await message.reply("Advertisement reset. ads photo link not found!")
     except Exception as e:
         await message.reply(f"An error occurred: {str(e)}")
+            
