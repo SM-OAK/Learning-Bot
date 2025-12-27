@@ -43,7 +43,7 @@ async def save_file(media):
             file_name=file_name,
             file_size=media.file_size,
             mime_type=media.mime_type,
-            caption=media.caption.html if media.caption else None,
+            caption=media.caption if media.caption else None,
             file_type=media.mime_type.split('/')[0]
         )
     except ValidationError:
