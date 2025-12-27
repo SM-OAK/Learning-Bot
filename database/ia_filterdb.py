@@ -63,33 +63,21 @@ async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
     query = query.strip()
     if not query:
         raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
     else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]') 
+        # This fix replaces spaces with a wildcard that matches dots, underscores, or dashes
+        # making the search much more flexible.
+        raw_pattern = query.replace(' ', r'.*') 
+    
     try:
+        # Use re.IGNORECASE to ensure "mirai" matches "Mirai"
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
     except:
         regex = query
+
     filter = {'file_name': regex}
     cursor = Media.find(filter)
-    cursor.sort('$natural', -1)
-    if lang:
-        lang_files = [file async for file in cursor if lang in file.file_name.lower()]
-        files = lang_files[offset:][:max_results]
-        total_results = len(lang_files)
-        next_offset = offset + max_results
-        if next_offset >= total_results:
-            next_offset = ''
-        return files, next_offset, total_results
-    cursor.skip(offset).limit(max_results)
-    files = await cursor.to_list(length=max_results)
-    total_results = await Media.count_documents(filter)
-    next_offset = offset + max_results
-    if next_offset >= total_results:
-        next_offset = ''       
-    return files, next_offset, total_results
-    
+    # ... (rest of your code)
+
 async def get_bad_files(query, file_type=None, offset=0, filter=False):
     query = query.strip()
     if not query:
