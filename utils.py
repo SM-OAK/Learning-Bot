@@ -1,5 +1,5 @@
 import logging
-from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
+from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid, ChatAdminRequired
 from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, IS_VERIFY, SETTINGS, START_IMG
 from imdb import Cinemagoer
 import asyncio
@@ -10,7 +10,7 @@ import re
 import os
 from shortzy import Shortzy
 from datetime import datetime
-from typing import Any
+from typing import Any, Tuple
 from database.users_chats_db import db
 
 logger = logging.getLogger(__name__)
@@ -276,7 +276,6 @@ def get_file_id(message: "Message") -> Any:
 
 def get_status():
     """Get greeting based on time of day"""
-    # FIX: Changed from Asia/Colombo to Asia/Kolkata for consistency
     tz = pytz.timezone('Asia/Kolkata')
     hour = datetime.now(tz).time().hour
     if 5 <= hour < 12:
@@ -287,14 +286,50 @@ def get_status():
         sts = "𝐺𝑜𝑜𝑑 𝐸𝑣𝑒𝑛𝑖𝑛𝑔"
     return sts
 
-async def is_check_admin(bot, chat_id, user_id):
-    """Check if user is admin in chat"""
+async def is_check_admin(bot, chat_id, user_id) -> Tuple[bool, str]:
+    """
+    Check if user is admin in chat.
+    
+    Args:
+        bot: Pyrogram client
+        chat_id: Chat ID to check
+        user_id: User ID to check
+        
+    Returns:
+        Tuple of (is_admin: bool, error_message: str or None)
+    """
+    # CRITICAL FIX: Handle None user_id (anonymous admins)
+    if not user_id:
+        logger.warning(f"Cannot verify admin status: user_id is None (anonymous admin)")
+        return False, "Cannot verify anonymous admins. Please send command with your personal account."
+    
     try:
+        # Get member info
         member = await bot.get_chat_member(chat_id, user_id)
-        return member.status in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER]
+        
+        # Check if user is admin or owner
+        if member.status in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER]:
+            logger.info(f"User {user_id} is admin in {chat_id}")
+            return True, None
+        else:
+            logger.warning(f"User {user_id} is not admin in {chat_id} (status: {member.status})")
+            return False, "You are not an admin in this group."
+            
+    except UserNotParticipant:
+        logger.warning(f"User {user_id} not in chat {chat_id}")
+        return False, "You are not a member of this group."
+        
+    except ChatAdminRequired:
+        logger.error(f"Bot lacks admin rights in {chat_id}")
+        return False, "Bot is not an admin. Please make bot admin to use this command."
+        
+    except PeerIdInvalid:
+        logger.error(f"Invalid peer ID: user={user_id}, chat={chat_id}")
+        return False, "Invalid user or chat ID."
+        
     except Exception as e:
-        logger.error(f"Error checking admin status: {e}")
-        return False
+        logger.error(f"Unexpected error checking admin status for {user_id} in {chat_id}: {e}", exc_info=True)
+        return False, f"Error checking admin status: {str(e)}"
 
 async def get_seconds(time_string):
     """Convert time string to seconds"""
@@ -335,4 +370,3 @@ def get_readable_time(seconds):
             period_value, seconds = divmod(seconds, period_seconds)
             result += f'{int(period_value)}{period_name}'
     return result if result else '0sec'
-     
