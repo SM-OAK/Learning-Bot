@@ -18,7 +18,7 @@ async def force_subscribe(client, message):
         return await m.edit("❌ This command is only for groups!")
     
     # FIX: Unpack tuple from is_check_admin
-    is_admin, error_msg = await is_check_admin(client, message.chat.id, message.from_user.id)
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
     if not is_admin:
         return await m.edit(f"❌ {error_msg}")
     
@@ -203,3 +203,4 @@ async def show_fsub(client, message):
             f"Failed to fetch force subscribe configuration.\n\n"
             f"Error: <code>{str(e)}</code>"
                                       )
+
