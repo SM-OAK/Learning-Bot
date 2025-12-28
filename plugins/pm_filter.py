@@ -1115,11 +1115,14 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer('ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ ʀᴇꜱᴇᴛ...')
         await query.message.edit_text("<b>ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ ʀᴇꜱᴇᴛ ɢʀᴏᴜᴘ ꜱᴇᴛᴛɪɴɢꜱ...\n\nɴᴏᴡ ꜱᴇɴᴅ /details ᴀɢᴀɪɴ</b>", reply_markup=reply_markup)
 
-    elif query.data.startswith("setgs"):
+        elif query.data.startswith("setgs"):
         ident, set_type, status, grp_id = query.data.split("#")
         userid = query.from_user.id if query.from_user else None
-        if not await is_check_admin(client, int(grp_id), userid):
-            await query.answer(script.ALRT_TXT, show_alert=True)
+        
+        # FIX: Unpack the tuple
+        is_admin, error_msg = await is_check_admin(client, int(grp_id), userid)
+        if not is_admin:
+            await query.answer(f"❌ {error_msg}", show_alert=True)
             return
         if status == "True":
             await save_group_settings(int(grp_id), set_type, False)
@@ -1660,3 +1663,4 @@ async def advantage_spell_chok(message):
         await message.delete()
     except:
         pass
+
