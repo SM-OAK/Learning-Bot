@@ -980,7 +980,7 @@ async def refer(bot, message):
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
     )
-
+    
 @Client.on_message(filters.private & filters.command("pm_search_on"))
 async def set_pm_search_on(client, message):
     user_id = message.from_user.id
@@ -1002,7 +1002,7 @@ async def set_pm_search_off(client, message):
     
     await db.update_pm_search_status(bot_id, enable=False)
     await message.reply_text("<b><i>❌️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ɴᴏ ᴏɴᴇ ᴄᴀɴ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
-
+    
 @Client.on_message(filters.command("verify_id"))
 async def generate_verify_id(bot, message):
     """Generate a verification ID for disabling verification"""
@@ -1023,7 +1023,28 @@ async def generate_verify_id(bot, message):
         return await message.reply_text(
             "<b>⚠️ Anonymous Admin Detected</b>\n\n"
             "You are posting as channel/anonymous admin.\n"
-            "Please send this command with your personal account to verify admin status."
+            "Please send this command with your p@Client.on_message(filters.private & filters.command("pm_search_on"))
+async def set_pm_search_on(client, message):
+    user_id = message.from_user.id
+    bot_id = client.me.id
+    if user_id not in ADMINS:
+        await message.delete()
+        return
+    
+    await db.update_pm_search_status(bot_id, enable=True)
+    await message.reply_text("<b><i>✅️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴇɴᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ᴜꜱᴇʀꜱ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
+
+@Client.on_message(filters.private & filters.command("pm_search_off"))
+async def set_pm_search_off(client, message):
+    user_id = message.from_user.id
+    bot_id = client.me.id
+    if user_id not in ADMINS:
+        await message.delete()
+        return
+    
+    await db.update_pm_search_status(bot_id, enable=False)
+    await message.reply_text("<b><i>❌️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ɴᴏ ᴏɴᴇ ᴄᴀɴ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
+ersonal account to verify admin status."
         )
     
     user_id = message.from_user.id
@@ -1416,4 +1437,5 @@ async def check_admin_status(bot, message):
             f"3. Verify chat ID is correct (use /id in group)\n"
             f"4. Make sure bot is admin in group"
         )
+
 
