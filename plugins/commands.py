@@ -22,7 +22,10 @@ from info import *
 import traceback
 logger = logging.getLogger(__name__)
 movie_series_db = JsTopDB(DATABASE_URI)
+
+# Store verification IDs with expiry
 verification_ids = {}
+verification_id_expiry = {}
 
 # CHECK COMPONENTS FOLDER FOR MORE COMMANDS
 @Client.on_message(filters.command("invite") & filters.private & filters.user(ADMINS))
@@ -986,7 +989,422 @@ async def set_pm_search_on(client, message):
         await message.delete()
         return
     
-    await db.update_pm_search_status(bot_id, enable=True)
+    await db.update_pm
+
+@Client.on_message(filters.command("verify_id"))
+async def generate_verify_id(bot, message):
+    """Generate a verification ID for disabling verification"""
+    
+    # Only works in groups
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text(
+            "<b>⚠️ This command only works in groups!</b>\n\n"
+            "Please use this command in your group chat."
+        )
+    
+    grpid = message.chat.id
+    title = message.chat.title
+    
+    # Handle anonymous admins
+    if not message.from_user:
+        return await message.reply_text(
+            "<b>⚠️ Anonymous Admin Detected</b>\n\n"
+            "You are posting as channel/anonymous admin.\n"
+            "Please send this command with your personal account to verify admin status."
+        )
+    
+    user_id = message.from_user.id
+    
+    # Check if user is admin with detailed error handling
+    is_admin, error_msg = await is_check_admin(bot, grpid, user_id)
+    
+    if not is_admin:
+        return await message.reply_text(
+            f'<b>❌ Permission Denied</b>\n\n{error_msg}\n\n'
+            f'<b>Troubleshooting:</b>\n'
+            f'• Make sure you are an admin in this group\n'
+            f'• Make sure bot is an admin\n'
+            f'• Try removing and re-adding bot admin rights'
+        )
+    
+    # Check if an active ID already exists
+    if grpid in verification_ids:
+        # Check if it's expired (10 minutes)
+        if grpid in verification_id_expiry:
+            expiry_time = verification_id_expiry[grpid]
+            if time.time() < expiry_time:
+                remaining = int(expiry_time - time.time())
+                return await message.reply_text(
+                    f"<b>⚠️ Active Verify ID Exists</b>\n\n"
+                    f"Current ID: <code>{verification_ids[grpid]}</code>\n"
+                    f"Expires in: {remaining // 60} minutes {remaining % 60} seconds\n\n"
+                    f"<b>To disable verification, use:</b>\n"
+                    f"<code>/verifyoff {verification_ids[grpid]}</code>"
+                )
+    
+    # Generate new verification ID
+    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    verification_ids[grpid] = verify_id
+    verification_id_expiry[grpid] = time.time() + 600  # 10 minutes expiry
+    
+    await message.reply_text(
+        f"<b>✅ Verification ID Generated</b>\n\n"
+        f"Group: <code>{title}</code>\n"
+        f"ID: <code>{verify_id}</code>\n"
+        f"Valid for: <b>10 minutes</b>\n"
+        f"One-time use only\n\n"
+        f"<b>To disable verification, use:</b>\n"
+        f"<code>/verifyoff {verify_id}</code>\n\n"
+        f"⚠️ <b>Keep this ID private!</b>"
+    )
+    
+    # Log to admin channel
+    if LOG_CHANNEL:
+        try:
+            await bot.send_message(
+                LOG_CHANNEL,
+                f"#VerifyIDGenerated\n\n"
+                f"Group: {title}\n"
+                f"ID: <code>{grpid}</code>\n"
+                f"By: {message.from_user.mention} (<code>{user_id}</code>)\n"
+                f"Verify ID: <code>{verify_id}</code>"
+            )
+        except Exception as e:
+            logger.error(f"Failed to log to channel: {e}")
+
+
+@Client.on_message(filters.command("verifyon"))
+async def verifyon(bot, message):
+    """Enable verification for the group"""
+    
+    # Check if command is used in group
+    chat_type = message.chat.type
+    if chat_type == enums.ChatType.PRIVATE:
+        return await message.reply_text(
+            "<b>⚠️ This command only works in groups!</b>\n\n"
+            "Please use this command in your group chat."
+        )
+    
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>⚠️ Invalid chat type!</b>")
+    
+    grpid = message.chat.id
+    title = message.chat.title
+    
+    # Handle anonymous admins
+    if not message.from_user:
+        return await message.reply_text(
+            "<b>⚠️ Anonymous Admin Detected</b>\n\n"
+            "You are posting as channel/anonymous admin.\n"
+            "Please send this command with your personal account to verify admin status."
+        )
+    
+    user_id = message.from_user.id
+    user_mention = message.from_user.mention
+    
+    # Show processing message
+    status_msg = await message.reply_text("⏳ Checking permissions...")
+    
+    # Check admin status with detailed error handling
+    is_admin, error_msg = await is_check_admin(bot, grpid, user_id)
+    
+    if not is_admin:
+        return await status_msg.edit_text(
+            f'<b>❌ Permission Denied</b>\n\n{error_msg}\n\n'
+            f'<b>Troubleshooting:</b>\n'
+            f'• Make sure you are an admin in this group\n'
+            f'• Make sure bot is an admin\n'
+            f'• Try using <code>/checkadmin {grpid}</code> in bot PM\n'
+            f'• Try removing and re-adding bot admin rights'
+        )
+    
+    # Admin verified, proceed with enabling verification
+    try:
+        await save_group_settings(grpid, 'is_verify', True)
+        
+        await status_msg.edit_text(
+            f"<b>✅ Verification Enabled Successfully!</b>\n\n"
+            f"Group: <code>{title}</code>\n"
+            f"Group ID: <code>{grpid}</code>\n"
+            f"Enabled by: {user_mention}\n\n"
+            f"<b>📋 What happens now:</b>\n"
+            f"• Users must verify before accessing files\n"
+            f"• Premium users skip verification\n"
+            f"• Admins can disable using <code>/verify_id</code> & <code>/verifyoff</code>\n\n"
+            f"<b>⚙️ Configure shorteners:</b>\n"
+            f"• <code>/set_verify</code> - 1st verification\n"
+            f"• <code>/set_verify_2</code> - 2nd verification\n"
+            f"• <code>/set_verify_3</code> - 3rd verification"
+        )
+        
+        # Log to admin channel if configured
+        if LOG_CHANNEL:
+            try:
+                await bot.send_message(
+                    LOG_CHANNEL,
+                    f"#VerificationEnabled\n\n"
+                    f"Group: {title}\n"
+                    f"ID: <code>{grpid}</code>\n"
+                    f"By: {user_mention} (<code>{user_id}</code>)\n"
+                    f"Status: ✅ Active"
+                )
+            except Exception as e:
+                logger.error(f"Failed to log to channel: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error enabling verification for {grpid}: {e}", exc_info=True)
+        await status_msg.edit_text(
+            f"<b>❌ Error</b>\n\n"
+            f"Failed to enable verification: <code>{str(e)}</code>\n\n"
+            f"Please contact support if this persists."
+        )
+
+
+@Client.on_message(filters.command("verifyoff"))
+async def verifyoff(bot, message):
+    """Disable verification for the group (requires verification ID)"""
+    
+    # Check if command is used in group
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text(
+            "<b>⚠️ This command only works in groups!</b>\n\n"
+            "Please use this command in your group chat."
+        )
+    
+    grpid = message.chat.id
+    title = message.chat.title
+    
+    # Handle anonymous admins
+    if not message.from_user:
+        return await message.reply_text(
+            "<b>⚠️ Anonymous Admin Detected</b>\n\n"
+            "You are posting as channel/anonymous admin.\n"
+            "Please send this command with your personal account."
+        )
+    
+    user_id = message.from_user.id
+    user_mention = message.from_user.mention
+    
+    # Check admin status
+    is_admin, error_msg = await is_check_admin(bot, grpid, user_id)
+    
+    if not is_admin:
+        return await message.reply_text(
+            f'<b>❌ Permission Denied</b>\n\n{error_msg}\n\n'
+            f'<b>Troubleshooting:</b>\n'
+            f'• Make sure you are an admin in this group\n'
+            f'• Make sure bot is an admin\n'
+            f'• Try using <code>/checkadmin {grpid}</code> in bot PM'
+        )
+    
+    # Check if verification ID was provided
+    try:
+        input_id = message.command[1]
+    except IndexError:
+        return await message.reply_text(
+            "<b>⚠️ Verification ID Required</b>\n\n"
+            "To disable verification, you need a verification ID.\n\n"
+            "<b>📝 Steps:</b>\n"
+            "1️⃣ Use <code>/verify_id</code> to generate an ID\n"
+            "2️⃣ Use <code>/verifyoff YOUR_ID</code> to disable\n\n"
+            "<b>💡 Example:</b>\n"
+            "<code>/verifyoff ABC12345</code>"
+        )
+    
+    # Check if ID is expired
+    if grpid in verification_id_expiry:
+        if time.time() > verification_id_expiry[grpid]:
+            # Clean up expired ID
+            if grpid in verification_ids:
+                del verification_ids[grpid]
+            del verification_id_expiry[grpid]
+            return await message.reply_text(
+                "<b>⏰ Verification ID Expired</b>\n\n"
+                "The ID has expired (10 minute limit).\n\n"
+                "Generate a new ID using <code>/verify_id</code>"
+            )
+    
+    # Verify the ID matches
+    if grpid not in verification_ids or verification_ids[grpid] != input_id:
+        return await message.reply_text(
+            "<b>❌ Invalid Verification ID</b>\n\n"
+            "The ID you provided doesn't match or has expired.\n\n"
+            "<b>Possible reasons:</b>\n"
+            "• ID was already used\n"
+            "• ID expired (10 min limit)\n"
+            "• Typo in the ID\n\n"
+            "Generate a new ID using <code>/verify_id</code>"
+        )
+    
+    # Valid ID, proceed with disabling verification
+    status_msg = await message.reply_text("⏳ Disabling verification...")
+    
+    try:
+        await save_group_settings(grpid, 'is_verify', False)
+        
+        # Remove used verification ID
+        del verification_ids[grpid]
+        if grpid in verification_id_expiry:
+            del verification_id_expiry[grpid]
+        
+        await status_msg.edit_text(
+            f"<b>✅ Verification Disabled Successfully!</b>\n\n"
+            f"Group: <code>{title}</code>\n"
+            f"Group ID: <code>{grpid}</code>\n"
+            f"Disabled by: {user_mention}\n\n"
+            f"<b>📋 What happens now:</b>\n"
+            f"• Users can access files without verification\n"
+            f"• You can re-enable anytime using <code>/verifyon</code>"
+        )
+        
+        # Log to admin channel
+        if LOG_CHANNEL:
+            try:
+                await bot.send_message(
+                    LOG_CHANNEL,
+                    f"#VerificationDisabled\n\n"
+                    f"Group: {title}\n"
+                    f"ID: <code>{grpid}</code>\n"
+                    f"By: {user_mention} (<code>{user_id}</code>)\n"
+                    f"Status: ❌ Disabled"
+                )
+            except Exception as e:
+                logger.error(f"Failed to log to channel: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error disabling verification for {grpid}: {e}", exc_info=True)
+        await status_msg.edit_text(
+            f"<b>❌ Error</b>\n\n"
+            f"Failed to disable verification: <code>{str(e)}</code>\n\n"
+            f"Please contact support if this persists."
+        )
+
+
+@Client.on_message(filters.command("checkadmin") & filters.private)
+async def check_admin_status(bot, message):
+    """Debug command to check admin status in a group"""
+    
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "<b>🔍 Check Admin Status</b>\n\n"
+            "<b>Usage:</b>\n"
+            "<code>/checkadmin -100xxxxxxxxx</code>\n\n"
+            "Replace with your group ID\n\n"
+            "<b>💡 How to get Group ID:</b>\n"
+            "1. Add bot to your group\n"
+            "2. Send <code>/id</code> in the group\n"
+            "3. Copy the group ID\n"
+            "4. Use it with this command"
+        )
+    
+    try:
+        chat_id = int(message.command[1])
+    except ValueError:
+        return await message.reply_text(
+            "<b>❌ Invalid Chat ID</b>\n\n"
+            "Chat ID must be a number.\n\n"
+            "<b>Examples:</b>\n"
+            "✅ <code>-1001234567890</code>\n"
+            "❌ <code>@groupusername</code>"
+        )
+    
+    user_id = message.from_user.id
+    checking_msg = await message.reply_text("🔍 Checking admin status...")
+    
+    try:
+        # Get chat info
+        chat = await bot.get_chat(chat_id)
+        
+        # Get user's status
+        member = await bot.get_chat_member(chat_id, user_id)
+        
+        # Get bot's status
+        bot_member = await bot.get_chat_member(chat_id, bot.me.id)
+        
+        # Status emojis
+        status_emoji = {
+            enums.ChatMemberStatus.OWNER: "👑",
+            enums.ChatMemberStatus.ADMINISTRATOR: "⭐",
+            enums.ChatMemberStatus.MEMBER: "👤",
+            enums.ChatMemberStatus.RESTRICTED: "🚫",
+            enums.ChatMemberStatus.LEFT: "🚶",
+            enums.ChatMemberStatus.BANNED: "❌"
+        }
+        
+        your_status = status_emoji.get(member.status, "❓") + " " + member.status.value.title()
+        bot_status = status_emoji.get(bot_member.status, "❓") + " " + bot_member.status.value.title()
+        
+        # Check admin rights
+        can_change = member.status in [
+            enums.ChatMemberStatus.OWNER, 
+            enums.ChatMemberStatus.ADMINISTRATOR
+        ]
+        
+        # Build detailed message
+        result = (
+            f"<b>📊 Admin Status Report</b>\n\n"
+            f"<b>📱 Group Info:</b>\n"
+            f"Name: {chat.title}\n"
+            f"ID: <code>{chat_id}</code>\n"
+            f"Type: {chat.type.value.title()}\n\n"
+            f"<b>👤 Your Status:</b> {your_status}\n"
+            f"<b>🤖 Bot Status:</b> {bot_status}\n\n"
+        )
+        
+        if can_change:
+            result += (
+                f"<b>✅ Permission Status: GRANTED</b>\n\n"
+                f"You can use admin commands:\n"
+                f"• <code>/verifyon</code> - Enable verification\n"
+                f"• <code>/verify_id</code> - Generate disable ID\n"
+                f"• <code>/settings</code> - Configure bot\n"
+            )
+        else:
+            result += (
+                f"<b>❌ Permission Status: DENIED</b>\n\n"
+                f"<b>Why you can't use admin commands:</b>\n"
+            )
+            
+            if member.status == enums.ChatMemberStatus.MEMBER:
+                result += f"• You are a regular member (not admin)\n"
+            elif member.status == enums.ChatMemberStatus.LEFT:
+                result += f"• You have left the group\n"
+            elif member.status == enums.ChatMemberStatus.BANNED:
+                result += f"• You are banned from the group\n"
+            
+            result += (
+                f"\n<b>🔧 To fix this:</b>\n"
+                f"• Ask group owner to promote you to admin\n"
+                f"• Make sure you're still in the group\n"
+            )
+        
+        # Check bot admin status
+        if bot_member.status != enums.ChatMemberStatus.ADMINISTRATOR:
+            result += (
+                f"\n<b>⚠️ Bot Admin Warning:</b>\n"
+                f"Bot is not an admin! Make bot admin for commands to work.\n"
+            )
+        
+        await checking_msg.edit_text(result)
+        
+    except Exception as e:
+        await checking_msg.edit_text(
+            f"<b>❌ Error Checking Status</b>\n\n"
+            f"Error: <code>{str(e)}</code>\n\n"
+            f"<b>Common reasons:</b>\n"
+            f"• Bot is not in the group\n"
+            f"• You are not in the group\n"
+            f"• Invalid chat ID\n"
+            f"• Bot lacks necessary permissions\n\n"
+            f"<b>What to check:</b>\n"
+            f"1. Make sure bot is added to group\n"
+            f"2. Make sure you're in the group\n"
+            f"3. Verify chat ID is correct (use /id in group)\n"
+            f"4. Make sure bot is admin in group"
+        )
+_search_status(bot_id, enable=True)
     await message.reply_text("<b><i>✅️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴇɴᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ᴜꜱᴇʀꜱ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
 
 @Client.on_message(filters.private & filters.command("pm_search_off"))
@@ -999,61 +1417,3 @@ async def set_pm_search_off(client, message):
     
     await db.update_pm_search_status(bot_id, enable=False)
     await message.reply_text("<b><i>❌️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ɴᴏ ᴏɴᴇ ᴄᴀɴ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
-
-@Client.on_message(filters.command("verify_id"))
-async def generate_verify_id(bot, message):
-    if message.from_user.id not in ADMINS:
-        await message.reply('Only the bot Admin can use this command... 😑')
-        return
-    chat_type = message.chat.type
-    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text("This command only works in groups!")
-    grpid = message.chat.id   
-    if grpid in verification_ids:
-        await message.reply_text(f"An active Verify ID already exists for this group: `/verifyoff {verification_ids[grpid]}`")
-        return
-    
-    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    verification_ids[grpid] = verify_id
-    await message.reply_text(f"Verify ID: `/verifyoff {verify_id}` (Valid for this group, one-time use)")
-    return
-
-@Client.on_message(filters.command("verifyoff"))
-async def verifyoff(bot, message):
-    chat_type = message.chat.type
-    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text("This command only works in groups!")
-    
-    grpid = message.chat.id
-    if not await is_check_admin(bot, grpid, message.from_user.id):  # Changed client to bot
-        return await message.reply_text('<b>You are not an admin in this group!</b>')
-    
-    try:
-        input_id = message.command[1]
-    except IndexError:
-        return await message.reply_text("Please provide the Verify ID along with the command.\nUsage: `/verifyoff {id}`")
-    
-    if grpid not in verification_ids or verification_ids[grpid] != input_id:
-        return await message.reply_text("Invalid Verify ID! Please contact the admin for the correct ID.")
-    
-    await save_group_settings(grpid, 'is_verify', False)
-    del verification_ids[grpid]
-    return await message.reply_text("Verification successfully disabled.")
-
-
-@Client.on_message(filters.command("verifyon"))
-async def verifyon(bot, message):
-    chat_type = message.chat.type
-    if chat_type == enums.ChatType.PRIVATE:
-        return await message.reply_text("This command only works in groups!")
-    elif chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        grpid = message.chat.id
-        title = message.chat.title
-    else:
-        return
-    
-    if not await is_check_admin(bot, grpid, message.from_user.id):  # Changed client to bot
-        return await message.reply_text('<b>You are not an admin in this group!</b>')
-    
-    await save_group_settings(grpid, 'is_verify', True)
-    return await message.reply_text("Verification successfully enabled.")
