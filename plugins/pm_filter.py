@@ -1099,8 +1099,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 await query.message.edit_text(f'Error: {e}')
             else:
                 await query.message.edit_text(f"<b>Process Completed for file deletion !\n\nSuccessfully deleted {str(deleted)} files from database for your query {keyword}.</b>")
-          
-    elif query.data.startswith("reset_grp_data"):
+	elif query.data.startswith("reset_grp_data"):
         grp_id = query.message.chat.id
         btn = [[
             InlineKeyboardButton('☕️ ᴄʟᴏsᴇ ☕️', callback_data='close_data')
@@ -1117,7 +1116,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer('ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ ʀᴇꜱᴇᴛ...')
         await query.message.edit_text("<b>ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ ʀᴇꜱᴇᴛ ɢʀᴏᴜᴘ ꜱᴇᴛᴛɪɴɢꜱ...\n\nɴᴏᴡ ꜱᴇɴᴅ /details ᴀɢᴀɪɴ</b>", reply_markup=reply_markup)
 
-        elif query.data.startswith("setgs"):
+ elif query.data.startswith("setgs"):
         ident, set_type, status, grp_id = query.data.split("#")
         userid = query.from_user.id if query.from_user else None
         
@@ -1665,5 +1664,6 @@ async def advantage_spell_chok(message):
         await message.delete()
     except:
         pass
+
 
 
