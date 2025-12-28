@@ -474,7 +474,8 @@ async def settings(client, message):
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         return await message.reply_text("<code>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ.</code>")
     grp_id = message.chat.id
-    if not await is_check_admin(client, grp_id, message.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await message.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     settings = await get_settings(grp_id)
     title = message.chat.title
@@ -515,7 +516,8 @@ async def save_template(client, message):
         return await message.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
     grp_id = message.chat.id
     title = message.chat.title
-    if not await is_check_admin(client, grp_id, message.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await message.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     try:
         template = message.text.split(" ", 1)[1]
@@ -655,7 +657,8 @@ async def delete_files(bot, message):
 async def save_caption(client, message):
     grp_id = message.chat.id
     title = message.chat.title
-    if not await is_check_admin(client, grp_id, message.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await message.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     chat_type = message.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
@@ -674,7 +677,8 @@ async def save_tutorial(client, message):
     chat_type = message.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         return await message.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
-    if not await is_check_admin(client, grp_id, message.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await message.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     try:
         tutorial = message.text.split(" ", 1)[1]
@@ -689,7 +693,8 @@ async def set_shortner(c, m):
     chat_type = m.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         return await m.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
-    if not await is_check_admin(c, grp_id, m.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await m.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')        
     if len(m.text.split()) == 1:
         await m.reply("<b>Use this command like this - \n\n`/set_shortner tnshort.net 06b24eb6bbb025713cd522fb3f696b6d5de11354`</b>")
@@ -723,7 +728,8 @@ async def set_shortner_2(c, m):
     chat_type = m.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         return await m.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
-    if not await is_check_admin(c, grp_id, m.from_user.id):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await m.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     if len(m.text.split()) == 1:
         await m.reply("<b>Use this command like this - \n\n`/set_shortner_2 tnshort.net 06b24eb6bbb025713cd522fb3f696b6d5de11354`</b>")
@@ -765,7 +771,8 @@ async def set_shortner_3(c, m):
         return await m.reply(f"<b>⚠️ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ᴏꜰ ᴛʜɪs ɢʀᴏᴜᴘ</b>")
     grp_id = m.chat.id
     #check if user admin or not
-    if not await is_check_admin(c, grp_id, userid):
+    is_admin, error_msg = await is_check_admin(client, grp_id, message.from_user.id)
+    if not is_admin:
         return await m.reply_text('<b>ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ</b>')
     if len(m.command) == 1:
         await m.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ᴀᴅᴅ sʜᴏʀᴛɴᴇʀ & ᴀᴘɪ\n\nᴇx - `/set_shortner_3 mdiskshortner.link e7beb3c8f756dfa15d0bec495abc65f58c0dfa95`</b>", quote=True)
@@ -1437,5 +1444,6 @@ async def check_admin_status(bot, message):
             f"3. Verify chat ID is correct (use /id in group)\n"
             f"4. Make sure bot is admin in group"
         )
+
 
 
