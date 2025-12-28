@@ -1009,110 +1009,6 @@ async def set_pm_search_off(client, message):
     
     await db.update_pm_search_status(bot_id, enable=False)
     await message.reply_text("<b><i>❌️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ɴᴏ ᴏɴᴇ ᴄᴀɴ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
-    
-@Client.on_message(filters.command("verify_id"))
-async def generate_verify_id(bot, message):
-    """Generate a verification ID for disabling verification"""
-    
-    # Only works in groups
-    chat_type = message.chat.type
-    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text(
-            "<b>⚠️ This command only works in groups!</b>\n\n"
-            "Please use this command in your group chat."
-        )
-    
-    grpid = message.chat.id
-    title = message.chat.title
-    
-    # Handle anonymous admins
-    if not message.from_user:
-        return await message.reply_text(
-            "<b>⚠️ Anonymous Admin Detected</b>\n\n"
-            "You are posting as channel/anonymous admin.\n"
-            "Please send this command with your p@Client.on_message(filters.private & filters.command("pm_search_on"))
-async def set_pm_search_on(client, message):
-    user_id = message.from_user.id
-    bot_id = client.me.id
-    if user_id not in ADMINS:
-        await message.delete()
-        return
-    
-    await db.update_pm_search_status(bot_id, enable=True)
-    await message.reply_text("<b><i>✅️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴇɴᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ᴜꜱᴇʀꜱ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
-
-@Client.on_message(filters.private & filters.command("pm_search_off"))
-async def set_pm_search_off(client, message):
-    user_id = message.from_user.id
-    bot_id = client.me.id
-    if user_id not in ADMINS:
-        await message.delete()
-        return
-    
-    await db.update_pm_search_status(bot_id, enable=False)
-    await message.reply_text("<b><i>❌️ ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ, ꜰʀᴏᴍ ɴᴏᴡ ɴᴏ ᴏɴᴇ ᴄᴀɴ ᴀʙʟᴇ ᴛᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇ ɪɴ ʙᴏᴛ ᴘᴍ.</i></b>")
-ersonal account to verify admin status."
-        )
-    
-    user_id = message.from_user.id
-    
-    # Check if user is admin with detailed error handling
-    is_admin, error_msg = await is_check_admin(bot, grpid, user_id)
-    
-    if not is_admin:
-        return await message.reply_text(
-            f'<b>❌ Permission Denied</b>\n\n{error_msg}\n\n'
-            f'<b>Troubleshooting:</b>\n'
-            f'• Make sure you are an admin in this group\n'
-            f'• Make sure bot is an admin\n'
-            f'• Try removing and re-adding bot admin rights'
-        )
-    
-    # Check if an active ID already exists
-    if grpid in verification_ids:
-        # Check if it's expired (10 minutes)
-        if grpid in verification_id_expiry:
-            expiry_time = verification_id_expiry[grpid]
-            if time.time() < expiry_time:
-                remaining = int(expiry_time - time.time())
-                return await message.reply_text(
-                    f"<b>⚠️ Active Verify ID Exists</b>\n\n"
-                    f"Current ID: <code>{verification_ids[grpid]}</code>\n"
-                    f"Expires in: {remaining // 60} minutes {remaining % 60} seconds\n\n"
-                    f"<b>To disable verification, use:</b>\n"
-                    f"<code>/verifyoff {verification_ids[grpid]}</code>"
-                )
-    
-    # Generate new verification ID
-    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    verification_ids[grpid] = verify_id
-    verification_id_expiry[grpid] = time.time() + 600  # 10 minutes expiry
-    
-    await message.reply_text(
-        f"<b>✅ Verification ID Generated</b>\n\n"
-        f"Group: <code>{title}</code>\n"
-        f"ID: <code>{verify_id}</code>\n"
-        f"Valid for: <b>10 minutes</b>\n"
-        f"One-time use only\n\n"
-        f"<b>To disable verification, use:</b>\n"
-        f"<code>/verifyoff {verify_id}</code>\n\n"
-        f"⚠️ <b>Keep this ID private!</b>"
-    )
-    
-    # Log to admin channel
-    if LOG_CHANNEL:
-        try:
-            await bot.send_message(
-                LOG_CHANNEL,
-                f"#VerifyIDGenerated\n\n"
-                f"Group: {title}\n"
-                f"ID: <code>{grpid}</code>\n"
-                f"By: {message.from_user.mention} (<code>{user_id}</code>)\n"
-                f"Verify ID: <code>{verify_id}</code>"
-            )
-        except Exception as e:
-            logger.error(f"Failed to log to channel: {e}")
-
 
 @Client.on_message(filters.command("verifyon"))
 async def verifyon(bot, message):
@@ -1444,6 +1340,7 @@ async def check_admin_status(bot, message):
             f"3. Verify chat ID is correct (use /id in group)\n"
             f"4. Make sure bot is admin in group"
         )
+
 
 
 
